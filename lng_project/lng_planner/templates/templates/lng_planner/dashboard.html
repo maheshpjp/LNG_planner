@@ -1,0 +1,820 @@
+{% load static %}
+{% load lng_filters %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LNG Annual Planning & Simulation Tool</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .sticky-col {
+            position: sticky;
+            left: 0;
+            z-index: 10;
+        }
+        .admin-buttons {
+            display: flex !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+        /* Collapsible sections */
+        .collapsible-body {
+            overflow-y: auto;
+            transition: max-height 0.35s ease, opacity 0.35s ease, padding 0.35s ease;
+            opacity: 1;
+        }
+        .collapsible-body.collapsed {
+            max-height: 0 !important;
+            opacity: 0;
+            padding-top: 0 !important;
+            padding-bottom: 0 !important;
+            overflow: hidden;
+        }
+        .chevron-rotated {
+            transform: rotate(-90deg);
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div class="min-h-screen p-6">
+        <div class="max-w-7xl mx-auto">
+            <!-- Header -->
+            <div class="bg-white rounded-lg shadow-xl p-6 mb-6">
+                <div class="flex justify-between items-center mb-4">
+                    <div>
+                        
+                        <h1 class="text-3xl font-bold text-gray-800">LNG Planning & Simulation </h1>
+                        {% if active_simulation %}
+                        <p class="text-sm text-gray-600 mt-1">
+                            Active: {{ active_simulation.name }} | {{ active_simulation.start_date }} to {{ active_simulation.end_date }}
+                        </p>
+                        {% endif %}
+                    </div>
+                    <div class="flex gap-2 flex-wrap">
+                        <a href="{% url 'lng_planner:create_simulation' %}" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                            ➕ New Simulation
+                        </a>
+                        {% if active_simulation %}
+                        <a href="{% url 'lng_planner:export_excel' active_simulation.id %}" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600">
+                            📥 Export Excel
+                        </a>
+                        <!-- <a href="{% url 'lng_planner:export_json' active_simulation.id %}" class="bg-indigo-500 text-white px-4 py-2 rounded hover:bg-indigo-600">
+                            📥 Export JSON
+                        </a>
+                        <a href="{% url 'lng_planner:import_json' active_simulation.id %}" class="bg-cyan-500 text-white px-4 py-2 rounded hover:bg-cyan-600">
+                            📤 Import JSON
+                        </a> -->
+                        {% endif %}
+                    </div>
+                </div>
+
+                {% if messages %}
+                <div class="mt-4">
+                    {% for message in messages %}
+                    <div class="{% if message.tags == 'success' %}bg-green-100 border-green-500 text-green-700{% elif message.tags == 'error' %}bg-red-100 border-red-500 text-red-700{% else %}bg-blue-100 border-blue-500 text-blue-700{% endif %} border-l-4 p-4 mb-2 rounded">
+                        {{ message }}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <!-- Simulation Selector -->
+                {% if simulations or master_simulation %}
+                <div class="mt-4">
+                    <label class="block text-sm font-semibold text-gray-600 mb-2">Switch Simulation:</label>
+                    <div class="flex gap-2 flex-wrap">
+                        {% if master_simulation %}
+                        <a href="{% url 'lng_planner:switch_simulation' master_simulation.id %}" 
+                           class="px-4 py-2 rounded {% if is_viewing_master %}bg-blue-600 text-white{% else %}bg-gray-200 text-gray-700 hover:bg-gray-300{% endif %}">
+                            📋 Master (Read-Only)
+                        </a>
+                        {% endif %}
+                        {% for sim in simulations %}
+                        <a href="{% url 'lng_planner:switch_simulation' sim.id %}" 
+                           class="px-4 py-2 rounded {% if sim.is_active %}bg-blue-600 text-white{% else %}bg-gray-200 text-gray-700 hover:bg-gray-300{% endif %}">
+                            {{ sim.name }}
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            {% if active_simulation %}
+            <!-- Planning Parameters -->
+            <div class="bg-white rounded-lg shadow mb-4 p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold text-blue-600">Planning Parameters</h2>
+                    {% if is_viewing_master and user.is_staff %}
+                    <div class="text-sm flex items-center gap-3">
+                        {% if master_simulation.last_sap_sync %}
+                        <span class="text-green-600">✓ Last SAP sync: {{ master_simulation.last_sap_sync|date:"M d, Y H:i" }}</span>
+                        {% else %}
+                        <span class="text-orange-600">⚠️ Not synced from SAP yet</span>
+                        {% endif %}    
+                        <a href="{% url 'lng_planner:refresh_master_sap' %}" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                            🔄 Refresh Master from SAP
+                        </a>
+                    </div>                    
+                    {% endif %}
+                </div>
+
+                <div class="p-6">
+                    <!-- Date Range & Days Info -->
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                        <div class="bg-blue-50 p-4 rounded-lg">
+                            <label class="block text-sm font-semibold text-gray-600 mb-1">From Date</label>
+                            <div class="text-xl font-bold text-blue-600">{{ active_simulation.start_date }}</div>
+                        </div>
+                        <div class="bg-blue-50 p-4 rounded-lg">
+                            <label class="block text-sm font-semibold text-gray-600 mb-1">To Date</label>
+                            <div class="text-xl font-bold text-blue-600">{{ active_simulation.end_date }}</div>
+                        </div>
+                        <div class="bg-blue-50 p-4 rounded-lg">
+                            <label class="block text-sm font-semibold text-gray-600 mb-1">Total Plants</label>
+                            <div class="text-xl font-bold text-blue-600">{{ plants.count }}</div>
+                        </div>
+                        <div class="bg-blue-50 p-4 rounded-lg">
+                            <label class="block text-sm font-semibold text-gray-600 mb-1">Total Days</label>
+                            <div class="text-xl font-bold text-blue-600">{{ total_days }}</div>
+                        </div>
+                    </div>
+
+                    <!-- Plant Filter Tabs -->
+                    <div class="mb-6">
+                        <div class="border-b border-gray-200">
+                            <nav class="-mb-px flex space-x-2 overflow-x-auto" id="plant-tabs">
+                                <button onclick="showPlantStats('total')" 
+                                        class="plant-tab active whitespace-nowrap py-2 px-4 border-b-2 font-medium text-sm rounded-t-lg"
+                                        data-plant="total">
+                                    📊 Total (All Plants)
+                                </button>
+                                {% for plant in plants %}
+                                <button onclick="showPlantStats('plant-{{ plant.id }}')" 
+                                        class="plant-tab whitespace-nowrap py-2 px-4 border-b-2 font-medium text-sm rounded-t-lg"
+                                        data-plant="plant-{{ plant.id }}">
+                                    🏭 {{ plant.name }}
+                                </button>
+                                {% endfor %}
+                            </nav>
+                        </div>
+                    </div>
+
+                    <!-- ═══════════════════════════════════════════════════════ -->
+                    <!-- Total Stats (Default View)                              -->
+                    <!-- Uses flat keys returned directly by get_simulation_data -->
+                    <!-- ═══════════════════════════════════════════════════════ -->
+                    <div id="stats-total" class="plant-stats-container">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4">Overall Statistics (All Plants Combined)</h3>
+                        
+                        <!-- Basic Counts -->
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                            <div class="bg-green-50 p-4 rounded-lg border-l-4 border-green-500">
+                                <div class="text-sm text-gray-600 mb-1">Total Suppliers</div>
+                                <div class="text-2xl font-bold text-green-600">{{ suppliers.count }}</div>
+                            </div>
+                            <div class="bg-teal-50 p-4 rounded-lg border-l-4 border-teal-500">
+                                <div class="text-sm text-gray-600 mb-1">Total Cargos</div>
+                                <div class="text-2xl font-bold text-teal-600">{{ cargos.count }}</div>
+                            </div>
+                            <div class="bg-orange-50 p-4 rounded-lg border-l-4 border-orange-500">
+                                <div class="text-sm text-gray-600 mb-1">Total Customers</div>
+                                <div class="text-2xl font-bold text-orange-600">{{ customers.count }}</div>
+                            </div>
+                            <div class="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500">
+                                <div class="text-sm text-gray-600 mb-1">Opening Inventory</div>
+                                {# FIX: was {% widthratio total_opening_inventory 1 1 %} which can show 0 for floats #}
+                                <div class="text-2xl font-bold text-blue-600">{{ total_opening_inventory|floatformat:0 }} MT</div>
+                            </div>
+                        </div>
+
+                        <!-- Supply & Demand Stats -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                            <div class="bg-green-100 p-4 rounded-lg">
+                                <div class="text-sm font-semibold text-green-800 mb-2">📈 Supply Till Today</div>
+                                {# FIX: was total_supplied_till_today — now a direct flat context key #}
+                                <div class="text-xl font-bold text-green-700">{{ total_supplied_till_today|floatformat:0 }} MT</div>
+                                <div class="text-xs text-green-600 mt-1">From suppliers & cargos received</div>
+                            </div>
+                            <div class="bg-orange-100 p-4 rounded-lg">
+                                <div class="text-sm font-semibold text-orange-800 mb-2">📉 Demand Till Today</div>
+                                {# FIX: was total_demand_till_today — now a direct flat context key #}
+                                <div class="text-xl font-bold text-orange-700">{{ total_demand_till_today|floatformat:0 }} MT</div>
+                                <div class="text-xs text-orange-600 mt-1">Total customer demand served</div>
+                            </div>
+                            <div class="bg-blue-100 p-4 rounded-lg">
+                                <div class="text-sm font-semibold text-blue-800 mb-2">📦 Current Inventory</div>
+                                {# FIX: was total_current_inventory — now a direct flat context key #}
+                                <div class="text-xl font-bold {% if total_current_inventory < 0 %}text-red-700{% else %}text-blue-700{% endif %}">
+                                    {{ total_current_inventory|floatformat:0 }} MT
+                                </div>
+                                <div class="text-xs text-blue-600 mt-1">As of today</div>
+                            </div>
+                        </div>
+
+                        <!-- Upcoming Stats -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="bg-green-50 p-4 rounded-lg border border-green-200">
+                                <div class="text-sm font-semibold text-green-800 mb-2">🔮 Upcoming Supply (Future)</div>
+                                {# FIX: was total_upcoming_supply — now a direct flat context key #}
+                                <div class="text-xl font-bold text-green-600">{{ total_upcoming_supply|floatformat:0 }} MT</div>
+                                <div class="text-xs text-green-600 mt-1">Expected from suppliers & future cargos</div>
+                            </div>
+                            <div class="bg-orange-50 p-4 rounded-lg border border-orange-200">
+                                <div class="text-sm font-semibold text-orange-800 mb-2">🔮 Upcoming Demand (Future)</div>
+                                {# FIX: was total_upcoming_demand — now a direct flat context key #}
+                                <div class="text-xl font-bold text-orange-600">{{ total_upcoming_demand|floatformat:0 }} MT</div>
+                                <div class="text-xs text-orange-600 mt-1">Expected customer demand</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ══════════════════════════════════════════════════════════════ -->
+                    <!-- Plant-wise Stats (Hidden by default)                          -->
+                    <!-- FIX: use plant_stats.<id>.stats.<key> — not flat wrong names  -->
+
+                    {% for plant in plants %}
+                    {% with ps=plant_stats|get_key:plant.id %}
+                    <div id="stats-plant-{{ plant.id }}" class="plant-stats-container hidden">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4">🏭 {{ plant.name }}{% if plant.location %} - {{ plant.location }}{% endif %}</h3>
+                        
+                        <!-- Basic Counts -->
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                            <div class="bg-green-50 p-4 rounded-lg border-l-4 border-green-500">
+                                <div class="text-sm text-gray-600 mb-1">Suppliers</div>
+                                {# FIX: was broken {% with %} loop — now reads from plant_stats #}
+                                <div class="text-2xl font-bold text-green-600">{{ ps.stats.suppliers }}</div>
+                            </div>
+                            <div class="bg-teal-50 p-4 rounded-lg border-l-4 border-teal-500">
+                                <div class="text-sm text-gray-600 mb-1">Cargos</div>
+                                {# FIX: same — was broken loop #}
+                                <div class="text-2xl font-bold text-teal-600">{{ ps.stats.cargos }}</div>
+                            </div>
+                            <div class="bg-orange-50 p-4 rounded-lg border-l-4 border-orange-500">
+                                <div class="text-sm text-gray-600 mb-1">Customers</div>
+                                {# FIX: same — was broken loop #}
+                                <div class="text-2xl font-bold text-orange-600">{{ ps.stats.customers }}</div>
+                            </div>
+                            <div class="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500">
+                                <div class="text-sm text-gray-600 mb-1">Opening Inventory</div>
+                                {# FIX: was a for-loop over plant_inventories — now reads from plant_stats #}
+                                <div class="text-2xl font-bold text-blue-600">{{ ps.stats.opening_inventory|floatformat:0 }} MT</div>
+                            </div>
+                        </div>
+
+                        <!-- Supply & Demand Stats for Plant -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                            <div class="bg-green-100 p-4 rounded-lg">
+                                <div class="text-sm font-semibold text-green-800 mb-2">📈 Supply Till Today</div>
+                                {# FIX: was get_key:'supplied_till_today' — correct key is supplied_qty_till_today, and needed .stats nesting #}
+                                <div class="text-xl font-bold text-green-700">{{ ps.stats.supplied_qty_till_today|floatformat:0 }} MT</div>
+                            </div>
+                            <div class="bg-orange-100 p-4 rounded-lg">
+                                <div class="text-sm font-semibold text-orange-800 mb-2">📉 Demand Till Today</div>
+                                {# FIX: was get_key:'demand_till_today' — correct key is received_qty_till_today, and needed .stats nesting #}
+                                <div class="text-xl font-bold text-orange-700">{{ ps.stats.received_qty_till_today|floatformat:0 }} MT</div>
+                            </div>
+                            <div class="bg-blue-100 p-4 rounded-lg">
+                                <div class="text-sm font-semibold text-blue-800 mb-2">📦 Current Inventory</div>
+                                {# FIX: needed .stats nesting #}
+                                <div class="text-xl font-bold {% if ps.stats.current_inventory < 0 %}text-red-700{% else %}text-blue-700{% endif %}">
+                                    {{ ps.stats.current_inventory|floatformat:0 }} MT
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Upcoming Stats for Plant -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="bg-green-50 p-4 rounded-lg border border-green-200">
+                                <div class="text-sm font-semibold text-green-800 mb-2">🔮 Upcoming Supply</div>
+                                {# FIX: needed .stats nesting #}
+                                <div class="text-xl font-bold text-green-600">{{ ps.stats.upcoming_supply|floatformat:0 }} MT</div>
+                            </div>
+                            <div class="bg-orange-50 p-4 rounded-lg border border-orange-200">
+                                <div class="text-sm font-semibold text-orange-800 mb-2">🔮 Upcoming Demand</div>
+                                {# FIX: needed .stats nesting #}
+                                <div class="text-xl font-bold text-orange-600">{{ ps.stats.upcoming_demand|floatformat:0 }} MT</div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endwith %}
+                    {% endfor %}
+
+                </div>
+            </div>
+
+            <!-- Plant-wise Alerts -->
+            {% if plant_alerts %}
+            <div class="bg-white rounded-lg shadow mb-4 p-6 space-y-2">
+                {% for plant_id, alert in plant_alerts.items %}
+                <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded">
+                    <div class="flex items-center">
+                        <span class="text-red-500 text-2xl mr-3">⚠️</span>
+                        <div>
+                            <h3 class="text-lg font-semibold text-red-800">Inventory Alert - {{ alert.plant.name }}!</h3>
+                            <p class="text-red-700">
+                                Inventory will go negative on <strong>{{ alert.date|date:"M d, Y" }}</strong>
+                                (Inventory: {{ alert.inventory|floatformat:0 }} MT)
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Suppliers -->
+            <div class="bg-white rounded-lg shadow mb-4">
+                <div class="bg-green-500 text-white p-4 rounded-t-lg flex justify-between items-center cursor-pointer select-none"
+                     onclick="toggleSection('suppliers-body', 'suppliers-chevron')">
+                    <div class="flex items-center gap-3">
+                        <span id="suppliers-chevron" class="transition-transform duration-300 text-lg">▼</span>
+                        <h2 class="text-xl font-bold">Suppliers ({{ suppliers.count }})</h2>
+                    </div>
+                    {% if not is_viewing_master %}
+                    <a href="{% url 'lng_planner:add_supplier' active_simulation.id %}"
+                       class="bg-green-700 px-4 py-2 rounded hover:bg-green-800"
+                       onclick="event.stopPropagation()">
+                        ➕ Add Supplier
+                    </a>
+                    {% endif %}
+                </div>
+                <div id="suppliers-body" class="collapsible-body p-6 space-y-2 overflow-y-auto" style="max-height: 320px;">
+                    {% for supplier in suppliers %}
+                    <div class="bg-green-50 p-4 rounded border">
+                        <!-- Supplier Header -->
+                        <div class="flex justify-between items-center mb-2">
+                            <div class="flex gap-6">
+                                <span class="font-bold text-gray-800">{{ supplier.name }}</span>
+                                <span class="text-blue-600 font-semibold">→ 🏭 {{ supplier.plant.name }}</span>
+                                <span class="text-green-600 font-semibold">{{ supplier.daily_supply|floatformat:0 }} MT/day</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Date Ranges for this Supplier -->
+                        <div class="ml-4 space-y-1 text-sm">
+                            {% for supplier_date in supplier.date_ranges.all %}
+                            <div class="flex justify-between items-center bg-white p-2 rounded border border-green-200">
+                                <span class="text-gray-600">
+                                    From: {{ supplier_date.from_date|date:"M d, Y" }} → To: {{ supplier_date.to_date|date:"M d, Y" }}
+                                </span>
+                                {% if not is_viewing_master %}
+                                <div class="flex gap-2">
+                                    <a href="{% url 'lng_planner:edit_supplier' supplier.id %}" class="text-blue-500 hover:text-blue-700">✏️</a>
+                                    <a href="{% url 'lng_planner:delete_supplier' supplier.id %}" onclick="return confirm('Delete this supplier?')" class="text-red-500 hover:text-red-700">❌</a>
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% empty %}
+                            <p class="text-gray-500 text-sm">No date ranges configured</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% empty %}
+                    <p class="text-gray-500 text-center py-4">No suppliers added yet.</p>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Cargos -->
+            <div class="bg-white rounded-lg shadow mb-4">
+                <div class="bg-teal-500 text-white p-4 rounded-t-lg flex justify-between items-center cursor-pointer select-none"
+                     onclick="toggleSection('cargos-body', 'cargos-chevron')">
+                    <div class="flex items-center gap-3">
+                        <span id="cargos-chevron" class="transition-transform duration-300 text-lg">▼</span>
+                        <h2 class="text-xl font-bold">Cargos ({{ cargos.count }})</h2>
+                    </div>
+                    {% if not is_viewing_master %}
+                    <a href="{% url 'lng_planner:add_cargo' active_simulation.id %}"
+                       class="bg-teal-700 px-4 py-2 rounded hover:bg-teal-800"
+                       onclick="event.stopPropagation()">
+                        ➕ Add Cargo
+                    </a>
+                    {% endif %}
+                </div>
+                <div id="cargos-body" class="collapsible-body p-6 space-y-2 overflow-y-auto" style="max-height: 285px;">
+                    {% for cargo in cargos %}
+                    <div class="flex justify-between items-center bg-teal-50 p-3 rounded border">
+                        <div class="flex gap-4">
+                            <span class="font-semibold text-gray-800">{{ cargo.cargo_name }}</span>
+                            <span class="text-blue-600 font-semibold">→ 🏭 {{ cargo.plant.name }}</span>
+                            <span class="text-gray-600">{{ cargo.delivery_date|date:"M d, Y" }}</span>
+                            <span class="text-teal-600 font-bold">{{ cargo.amount|floatformat:0 }} MT</span>
+                        </div>
+                        {% if not is_viewing_master %}
+                        <div class="flex gap-2">
+                            <a href="{% url 'lng_planner:edit_cargo' cargo.id %}" class="text-blue-500 hover:text-blue-700">✏️</a>
+                            <a href="{% url 'lng_planner:delete_cargo' cargo.id %}" onclick="return confirm('Delete this cargo?')" class="text-red-500 hover:text-red-700">❌</a>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% empty %}
+                    <p class="text-gray-500 text-center py-4">No cargos added yet.</p>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Customers -->
+            <div class="bg-white rounded-lg shadow mb-4">
+                <div class="bg-orange-500 text-white p-4 rounded-t-lg flex justify-between items-center cursor-pointer select-none"
+                     onclick="toggleSection('customers-body', 'customers-chevron')">
+                    <div class="flex items-center gap-3">
+                        <span id="customers-chevron" class="transition-transform duration-300 text-lg">▼</span>
+                        <h2 class="text-xl font-bold">Customers ({{ customers.count }})</h2>
+                    </div>
+                    {% if not is_viewing_master %}
+                    <a href="{% url 'lng_planner:add_customer' active_simulation.id %}"
+                       class="bg-orange-700 px-4 py-2 rounded hover:bg-orange-800"
+                       onclick="event.stopPropagation()">
+                        ➕ Add Customer
+                    </a>
+                    {% endif %}
+                </div>
+                <div id="customers-body" class="collapsible-body p-6 space-y-2 overflow-y-auto" style="max-height: 320px;">
+                    {% for plant_id, customer_list in customers_summary.items %}
+                        {% for customer_summary in customer_list %}
+                        <div class="bg-orange-50 p-4 rounded border">
+                            <!-- Customer Name Header -->
+                            <div class="flex justify-between items-center mb-2">
+                                <div class="flex gap-6">
+                                    <span class="font-bold text-gray-800">{{ customer_summary.name }}</span>
+                                    <span class="text-blue-600 font-semibold">← 🏭 {{ customer_summary.plant.name }}</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Date Ranges for this Customer -->
+                            <div class="ml-4 space-y-1 text-sm">
+                                {% for range in customer_summary.ranges %}
+                                <div class="flex justify-between items-center bg-white p-2 rounded border border-orange-200">
+                                    <div class="flex gap-6">
+                                        <span class="text-orange-600 font-semibold">{{ range.daily_demand|floatformat:0 }} MT/day</span>
+                                        <span class="text-gray-600">
+                                            From: {{ range.from_date|date:"M d, Y" }} → To: {{ range.to_date|date:"M d, Y" }}
+                                        </span>
+                                    </div>
+                                    {% if not is_viewing_master %}
+                                    <div class="flex gap-2">
+                                        <a href="{% url 'lng_planner:edit_customer' range.id %}" class="text-blue-500 hover:text-blue-700">✏️</a>
+                                        <a href="{% url 'lng_planner:delete_customer' range.id %}" onclick="return confirm('Delete this date range?')" class="text-red-500 hover:text-red-700">❌</a>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% empty %}
+                        <p class="text-gray-500 text-center py-4">No customers added yet.</p>
+                        {% endfor %}
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Refineries -->
+            <div class="bg-white rounded-lg shadow mb-4">
+                <div class="bg-purple-600 text-white p-4 rounded-t-lg flex justify-between items-center cursor-pointer select-none"
+                     onclick="toggleSection('refineries-body', 'refineries-chevron')">
+                    <div class="flex items-center gap-3">
+                        <span id="refineries-chevron" class="transition-transform duration-300 text-lg">▼</span>
+                        <h2 class="text-xl font-bold">Refineries ({{ refineries|length }})</h2>
+                    </div>
+                    {% if not is_viewing_master %}
+                    <a href="{% url 'lng_planner:add_refinery' active_simulation.id %}"
+                       class="bg-purple-800 px-4 py-2 rounded hover:bg-purple-900"
+                       onclick="event.stopPropagation()">
+                        ➕ Add Refinery
+                    </a>
+                    {% endif %}
+                </div>
+                <div id="refineries-body" class="collapsible-body p-6 space-y-2 overflow-y-auto" style="max-height: 320px;">
+                    {% for refinery in refineries %}
+                    <div class="bg-purple-50 p-4 rounded border">
+                        <!-- Refinery Header -->
+                        <div class="flex justify-between items-center mb-2">
+                            <div class="flex gap-6">
+                                <span class="font-bold text-gray-800">{{ refinery.name }}</span>
+                                <span class="text-blue-600 font-semibold">→ 🏭 {{ refinery.plant.name }}</span>
+                                <span class="text-purple-600 font-semibold">{{ refinery.daily_refinery_supply|floatformat:0 }} MT/day</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Date Ranges for this Refinery -->
+                        <div class="ml-4 space-y-1 text-sm">
+                            {% for refinery_date in refinery.date_ranges.all %}
+                            <div class="flex justify-between items-center bg-white p-2 rounded border border-purple-200">
+                                <span class="text-gray-600">
+                                    From: {{ refinery_date.from_date|date:"M d, Y" }} → To: {{ refinery_date.to_date|date:"M d, Y" }}
+                                </span>
+                                {% if not is_viewing_master %}
+                                <div class="flex gap-2">
+                                    <a href="{% url 'lng_planner:edit_refinery' refinery.id %}" class="text-blue-500 hover:text-blue-700">✏️</a>
+                                    <a href="{% url 'lng_planner:delete_refinery' refinery.id %}" onclick="return confirm('Delete this refinery?')" class="text-red-500 hover:text-red-700">❌</a>
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% empty %}
+                            <p class="text-gray-500 text-sm">No date ranges configured</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% empty %}
+                    <p class="text-gray-500 text-center py-4">No refineries added yet.</p>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Daily Projection Table -->
+            <div class="bg-white rounded-lg shadow mb-4">
+                <div class="bg-purple-500 text-white p-4 rounded-t-lg">
+                    <h2 class="text-xl font-bold">Daily Inventory Projection</h2>
+                </div>
+                <div class="p-6">
+                    <div class="overflow-auto max-h-96">
+                        <table class="w-full border-collapse text-sm">
+                            <thead class="bg-gray-100 sticky top-0">
+                                <tr>
+                                    <th class="border px-3 py-2 text-left font-semibold sticky-col bg-gray-100">Item</th>
+                                    {% for day in daily_data %}
+                                    <th class="border px-3 py-2 text-center min-w-32">
+                                        {{ day.date|date:"M d, Y" }}
+                                    </th>
+                                    {% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for plant in plants %}
+                                <!-- Plant Header -->
+                                <tr class="bg-blue-100">
+                                    <td colspan="100" class="border px-3 py-3 font-bold text-lg text-blue-800 sticky-col bg-blue-100">
+                                        🏭 {{ plant.name }}
+                                    </td>
+                                </tr>
+                                
+                                <!-- Suppliers for this plant -->
+                                {% for supplier in suppliers %}
+                                    {% if supplier.plant_id == plant.id %}
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="border px-3 py-2 font-semibold bg-green-50 sticky-col pl-8">
+                                            {{ supplier.name }}
+                                        </td>
+                                        {% for day in daily_data %}
+                                        <td class="border px-3 py-2 text-center text-green-600 font-semibold">
+                                            {% with plant_data=day.plant_data|get_key:plant.id %}
+                                                {% if plant_data %}
+                                                    {% for supply in plant_data.supplies %}
+                                                        {% if supply.type == 'supplier' and supply.name == supplier.name %}
+                                                            {{ supply.amount|floatformat:0 }}
+                                                        {% endif %}
+                                                    {% endfor %}
+                                                {% endif %}
+                                            {% endwith %}
+                                        </td>
+                                        {% endfor %}
+                                    </tr>
+                                    {% endif %}
+                                {% endfor %}
+                                
+                                <!-- Cargos for this plant -->
+                                {% for cargo in cargos %}
+                                    {% if cargo.plant_id == plant.id %}
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="border px-3 py-2 font-semibold bg-teal-50 sticky-col pl-8">
+                                            {{ cargo.cargo_name }}
+                                        </td>
+                                        {% for day in daily_data %}
+                                        <td class="border px-3 py-2 text-center text-teal-600 font-semibold">
+                                            {% with plant_data=day.plant_data|get_key:plant.id %}
+                                                {% if plant_data %}
+                                                    {% for supply in plant_data.supplies %}
+                                                        {% if supply.type == 'cargo' and supply.name == cargo.cargo_name %}
+                                                            {{ supply.amount|floatformat:0 }}
+                                                        {% endif %}
+                                                    {% endfor %}
+                                                {% endif %}
+                                            {% endwith %}
+                                        </td>
+                                        {% endfor %}
+                                    </tr>
+                                    {% endif %}
+                                {% endfor %}
+                                
+                                <!-- Plant Total Supply -->
+                                <tr class="bg-green-100 font-bold">
+                                    <td class="border px-3 py-2 sticky-col bg-green-100 pl-8">Total Supply - {{ plant.name }}</td>
+                                    {% for day in daily_data %}
+                                    <td class="border px-3 py-2 text-center text-green-700">
+                                        {% with plant_data=day.plant_data|get_key:plant.id %}
+                                            {% if plant_data and plant_data.supply > 0 %}
+                                                {{ plant_data.supply|floatformat:0 }}
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        {% endwith %}
+                                    </td>
+                                    {% endfor %}
+                                </tr>
+
+                                <!-- Customers for this plant (unique names merged) -->
+                                {% for customer_name in customers_by_plant|get_key:plant.id %}
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="border px-3 py-2 font-semibold bg-orange-50 sticky-col pl-8">
+                                            {{ customer_name|cut:" Demand" }}
+                                        </td>
+                                        {% for day in daily_data %}
+                                        <td class="border px-3 py-2 text-center text-orange-600 font-semibold">
+                                            {% with plant_data=day.plant_data|get_key:plant.id %}
+                                                {% if plant_data %}
+                                                    {% for demand in plant_data.demands %}
+                                                        {% if demand.customer == customer_name %}
+                                                            {% if demand.requested_amount != demand.served_amount %}
+                                                                {{ demand.requested_amount|floatformat:0 }} ({{ demand.served_amount|floatformat:0 }})
+                                                            {% else %}
+                                                                {{ demand.requested_amount|floatformat:0 }}
+                                                            {% endif %}
+                                                        {% endif %}
+                                                    {% endfor %}
+                                                {% endif %}
+                                            {% endwith %}
+                                        </td>
+                                        {% endfor %}
+                                    </tr>
+                                {% endfor %}
+                                
+                                <!-- Plant Total Demand -->
+                                <tr class="bg-orange-100 font-bold">
+                                    <td class="border px-3 py-2 sticky-col bg-orange-100 pl-8">Total Demand - {{ plant.name }}</td>
+                                    {% for day in daily_data %}
+                                    <td class="border px-3 py-2 text-center text-orange-700">
+                                        {% with plant_data=day.plant_data|get_key:plant.id %}
+                                            {% if plant_data %}
+                                                {% if plant_data.requested_demand != plant_data.demand %}
+                                                    {{ plant_data.requested_demand|floatformat:0 }} (served {{ plant_data.demand|floatformat:0 }})
+                                                {% else %}
+                                                    {{ plant_data.requested_demand|floatformat:0 }}
+                                                {% endif %}
+                                            {% endif %}
+                                        {% endwith %}
+                                    </td>
+                                    {% endfor %}
+                                </tr>
+
+                                <!-- Plant Closing Inventory -->
+                                <tr class="bg-blue-100 font-bold">
+                                    <td class="border px-3 py-2 sticky-col bg-blue-100 pl-8">Closing Inventory - {{ plant.name }}</td>
+                                    {% for day in daily_data %}
+                                    <td class="border px-3 py-2 text-center {% with plant_data=day.plant_data|get_key:plant.id %}{% if plant_data.is_negative %}text-red-700 bg-red-100{% else %}text-blue-700{% endif %}{% endwith %}">
+                                        {% with plant_data=day.plant_data|get_key:plant.id %}
+                                            {% if plant_data %}
+                                                {{ plant_data.inventory|floatformat:0 }}
+                                            {% endif %}
+                                        {% endwith %}
+                                    </td>
+                                    {% endfor %}
+                                </tr>
+                                
+                                <!-- Spacer row -->
+                                <tr>
+                                    <td colspan="100" class="py-2"></td>
+                                </tr>
+                                {% endfor %}
+
+                                <!-- Overall Totals -->
+                                <tr class="bg-gray-200">
+                                    <td colspan="100" class="border px-3 py-3 font-bold text-lg text-gray-800 sticky-col bg-gray-200">
+                                        📊 TOTAL (All Plants)
+                                    </td>
+                                </tr>
+                                
+                                <tr class="bg-green-200 font-bold">
+                                    <td class="border px-3 py-2 sticky-col bg-green-200 pl-8">Total Supply (All Plants)</td>
+                                    {% for day in daily_data %}
+                                    <td class="border px-3 py-2 text-center text-green-800">
+                                        {% if day.total_supply > 0 %}{{ day.total_supply|floatformat:0 }}{% else %}-{% endif %}
+                                    </td>
+                                    {% endfor %}
+                                </tr>
+
+                                <tr class="bg-orange-200 font-bold">
+                                    <td class="border px-3 py-2 sticky-col bg-orange-200 pl-8">Total Demand (All Plants)</td>
+                                    {% for day in daily_data %}
+                                    <td class="border px-3 py-2 text-center text-orange-800">
+                                        {% if day.total_requested_demand != day.total_demand %}
+                                            {{ day.total_requested_demand|floatformat:0 }} (served {{ day.total_demand|floatformat:0 }})
+                                        {% else %}
+                                            {{ day.total_demand|floatformat:0 }}
+                                        {% endif %}
+                                    </td>
+                                    {% endfor %}
+                                </tr>
+
+                                <tr class="bg-blue-200 font-bold">
+                                    <td class="border px-3 py-2 sticky-col bg-blue-200 pl-8">Total Closing Inventory (All Plants)</td>
+                                    {% for day in daily_data %}
+                                    <td class="border px-3 py-2 text-center {% if day.total_inventory < 0 %}text-red-700 bg-red-100{% else %}text-blue-800{% endif %}">
+                                        {{ day.total_inventory|floatformat:0 }}
+                                    </td>
+                                    {% endfor %}
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Simulation Comments -->
+            <div class="bg-white rounded-lg shadow mb-4">
+                <div class="bg-blue-500 text-white p-4 rounded-t-lg flex justify-between items-center">
+                    <h2 class="text-xl font-bold">Simulation Comments</h2>
+                </div>
+                <div class="p-6">
+                    {% if not is_viewing_master %}
+                    <!-- Add Comment Form -->
+                    <form method="post" action="{% url 'lng_planner:add_comment' active_simulation.id %}" class="mb-6">
+                        {% csrf_token %}
+                        <div class="space-y-3">
+                            <textarea name="comment" class="w-full border border-gray-300 rounded p-3 focus:outline-none focus:border-blue-500" 
+                                      rows="3" placeholder="Add a comment about this simulation..." required></textarea>
+                            <button type="submit" class="bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600 transition-colors">
+                                Add Comment
+                            </button>
+                        </div>
+                    </form>
+                    {% endif %}
+                    
+                    <!-- Comments List -->
+                    <div class="space-y-3 max-h-64 overflow-y-auto">
+                        {% for comment in comments %}
+                        <div class="border-l-4 border-blue-500 bg-blue-50 p-4 rounded">
+                            <div class="flex justify-between items-start mb-2">
+                                <span class="font-bold text-gray-800">{{ comment.created_by.username }}</span>
+                                <span class="text-sm text-gray-500">{{ comment.created_at|date:"M d, Y H:i" }}</span>
+                            </div>
+                            <p class="text-gray-700">{{ comment.comment }}</p>
+                        </div>
+                        {% empty %}
+                        <p class="text-gray-500 text-center py-4">No comments yet. Be the first to comment!</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow p-12 text-center">
+                <h2 class="text-2xl font-bold text-gray-600 mb-4">No Active Simulation</h2>
+                <p class="text-gray-500 mb-6">Create a new simulation to get started with LNG planning.</p>
+                <a href="{% url 'lng_planner:create_simulation' %}" class="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 inline-block">
+                    Create Your First Simulation
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+<script>
+function toggleSection(bodyId, chevronId) {
+    const body = document.getElementById(bodyId);
+    const chevron = document.getElementById(chevronId);
+    const isCollapsed = body.classList.contains('collapsed');
+    body.classList.toggle('collapsed', !isCollapsed);
+    chevron.classList.toggle('chevron-rotated', !isCollapsed);
+}
+
+function showPlantStats(plantId) {
+    document.querySelectorAll('.plant-stats-container').forEach(container => {
+        container.classList.add('hidden');
+    });
+    
+    document.querySelectorAll('.plant-tab').forEach(tab => {
+        tab.classList.remove('active', 'border-blue-500', 'text-blue-600');
+        tab.classList.add('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+    });
+    
+    const statsContainer = document.getElementById('stats-' + plantId);
+    if (statsContainer) {
+        statsContainer.classList.remove('hidden');
+    }
+    
+    const activeTab = document.querySelector(`[data-plant="${plantId}"]`);
+    if (activeTab) {
+        activeTab.classList.add('active', 'border-blue-500', 'text-blue-600');
+        activeTab.classList.remove('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.plant-tab').forEach(tab => {
+        if (!tab.classList.contains('active')) {
+            tab.classList.add('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+        } else {
+            tab.classList.add('border-blue-500', 'text-blue-600');
+        }
+    });
+});
+</script>
+
+<style>
+.plant-tab { transition: all 0.2s ease; }
+.plant-tab.active { background-color: #EFF6FF; }
+</style>
+
+</body>
+</html>

@@ -1,0 +1,51 @@
+
+<!-- templates/lng_planner/import_json.html -->
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Import JSON</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen p-6">
+    <div class="max-w-2xl mx-auto">
+        <div class="bg-white rounded-lg shadow-lg p-8">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">Import Data from JSON</h2>
+            
+            {% if form.errors %}
+            <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4 rounded">
+                <p class="font-bold">Please correct the errors below:</p>
+            </div>
+            {% endif %}
+            
+            <form method="post" enctype="multipart/form-data" class="space-y-6">
+                {% csrf_token %}
+                
+                <div>
+                    <label for="id_json_file" class="block text-sm font-semibold text-gray-700 mb-2">
+                        Select JSON File *
+                    </label>
+                    {{ form.json_file }}
+                    {% if form.json_file.errors %}
+                        <p class="text-red-500 text-sm mt-1">{{ form.json_file.errors.0 }}</p>
+                    {% endif %}
+                    <p class="text-gray-600 text-sm mt-2">
+                        Upload a JSON file with suppliers, cargos, and customers data.
+                    </p>
+                </div>
+                
+                <div class="flex gap-3 pt-4">
+                    <button type="submit" class="flex-1 bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 transition font-semibold">
+                        Import Data
+                    </button>
+                    <a href="{% url 'lng_planner:dashboard' %}" class="flex-1 bg-gray-500 text-white px-6 py-3 rounded-lg hover:bg-gray-600 transition text-center font-semibold">
+                        Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

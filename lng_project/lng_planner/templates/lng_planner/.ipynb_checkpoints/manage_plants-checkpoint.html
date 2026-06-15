@@ -1,0 +1,82 @@
+<!-- templates/lng_planner/manage_plants.html -->
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Plants</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen p-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="bg-white rounded-lg shadow-lg p-8 mb-6">
+            <div class="flex justify-between items-center mb-6">
+                <h1 class="text-3xl font-bold text-gray-800">Manage Plants</h1>
+                <a href="{% url 'lng_planner:dashboard' %}" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
+                    ← Back to Dashboard
+                </a>
+            </div>
+
+            {% if messages %}
+            <div class="mb-4">
+                {% for message in messages %}
+                <div class="{% if message.tags == 'success' %}bg-green-100 border-green-500 text-green-700{% elif message.tags == 'error' %}bg-red-100 border-red-500 text-red-700{% else %}bg-blue-100 border-blue-500 text-blue-700{% endif %} border-l-4 p-4 mb-2 rounded">
+                    {{ message }}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Add New Plant Form -->
+            <div class="bg-blue-50 p-6 rounded-lg mb-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-4">Add New Plant</h2>
+                <form method="post" class="space-y-4">
+                    {% csrf_token %}
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">Plant Name *</label>
+                            {{ form.name }}
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">Location</label>
+                            {{ form.location }}
+                        </div>
+                    </div>
+                    <button type="submit" class="bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600 font-semibold">
+                        ➕ Add Plant
+                    </button>
+                </form>
+            </div>
+
+            <!-- Existing Plants -->
+            <div>
+                <h2 class="text-xl font-bold text-gray-800 mb-4">Existing Plants ({{ plants.count }})</h2>
+                {% if plants %}
+                <div class="space-y-2">
+                    {% for plant in plants %}
+                    <div class="flex justify-between items-center bg-gray-50 p-4 rounded border hover:bg-gray-100">
+                        <div>
+                            <span class="font-bold text-gray-800 text-lg">{{ plant.name }}</span>
+                            {% if plant.location %}
+                            <span class="text-gray-600 ml-4">📍 {{ plant.location }}</span>
+                            {% endif %}
+                        </div>
+                        <a href="{% url 'lng_planner:delete_plant' plant.id %}" 
+                           onclick="return confirm('Delete plant {{ plant.name }}? This will affect all simulations using this plant.')"
+                           class="text-red-500 hover:text-red-700 font-semibold">
+                            ❌ Delete
+                        </a>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-gray-500 text-center py-8 bg-gray-50 rounded">
+                    No plants created yet. Add your first plant above.
+                </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</body>
+</html>

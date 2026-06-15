@@ -1,0 +1,177 @@
+<!-- templates/lng_planner/manage_master.html -->
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen p-6">
+    <div class="max-w-3xl mx-auto">
+        <div class="bg-white rounded-lg shadow-lg p-8">
+            <div class="mb-6">
+                <h2 class="text-3xl font-bold text-gray-800 mb-2">{{ title }}</h2>
+                <p class="text-gray-600">
+                    Configure the master simulation that will be loaded from SAP and visible to all users (read-only).
+                </p>
+            </div>
+            
+            {% if form.errors %}
+            <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4 rounded">
+                <p class="font-bold">Please correct the errors below:</p>
+                <ul class="list-disc list-inside">
+                    {% for field, errors in form.errors.items %}
+                        {% for error in errors %}
+                            <li>{{ field }}: {{ error }}</li>
+                        {% endfor %}
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            {% if master %}
+            <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6 rounded">
+                <p class="text-blue-800">
+                    <strong>ℹ️ Note:</strong> This master simulation is currently visible to all users. 
+                    {% if master.last_sap_sync %}
+                    Last synced from SAP: <strong>{{ master.last_sap_sync|date:"M d, Y H:i" }}</strong>
+                    {% else %}
+                    Not yet synced from SAP.
+                    {% endif %}
+                </p>
+            </div>
+            {% endif %}
+            
+            <form method="post" class="space-y-6">
+                {% csrf_token %}
+                
+                <div>
+                    <label for="id_name" class="block text-sm font-semibold text-gray-700 mb-2">
+                        Simulation Name *
+                    </label>
+                    {{ form.name }}
+                    {% if form.name.errors %}
+                        <p class="text-red-500 text-sm mt-1">{{ form.name.errors.0 }}</p>
+                    {% endif %}
+                    <p class="text-gray-500 text-sm mt-1">This name will be visible to all users</p>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label for="id_start_date" class="block text-sm font-semibold text-gray-700 mb-2">
+                            Start Date *
+                        </label>
+                        {{ form.start_date }}
+                        {% if form.start_date.errors %}
+                            <p class="text-red-500 text-sm mt-1">{{ form.start_date.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                    
+                    <div>
+                        <label for="id_end_date" class="block text-sm font-semibold text-gray-700 mb-2">
+                            End Date *
+                        </label>
+                        {{ form.end_date }}
+                        {% if form.end_date.errors %}
+                            <p class="text-red-500 text-sm mt-1">{{ form.end_date.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div>
+                    <label for="id_sap_api_url" class="block text-sm font-semibold text-gray-700 mb-2">
+                        SAP API URL *
+                    </label>
+                    {{ form.sap_api_url }}
+                    {% if form.sap_api_url.errors %}
+                        <p class="text-red-500 text-sm mt-1">{{ form.sap_api_url.errors.0 }}</p>
+                    {% endif %}
+                    <p class="text-gray-500 text-sm mt-1">
+                        API endpoint that returns suppliers, cargos, customers, and plant inventories in JSON format
+                    </p>
+                </div>
+
+                <div class="flex items-center gap-3 bg-yellow-50 p-4 rounded">
+                    {{ form.is_master }}
+                    <label for="id_is_master" class="text-sm font-semibold text-gray-700">
+                        Mark as Master Simulation (Read-only for all users)
+                    </label>
+                </div>
+
+                <div class="bg-green-50 border-l-4 border-green-500 p-4 rounded">
+                    <h3 class="font-bold text-green-800 mb-2">📋 SAP API Expected Format:</h3>
+                    <pre class="text-xs text-green-900 bg-white p-3 rounded overflow-auto">{
+  "plant_inventories": [{
+    "plant_name": "Plant A",
+    "opening_inventory": 10000
+  }],
+  "suppliers": [{
+    "name": "Supplier A",
+    "plant_name": "Plant A",
+    "date_ranges": [{
+      "from_date": "2025-01-01",
+      "to_date": "2025-12-31",
+      "daily_supply": 100
+    }]
+  }],
+  "cargos": [{
+    "cargo_name": "Cargo-001",
+    "plant_name": "Plant A",
+    "date": "2025-01-15",
+    "amount": 5000
+  }],
+  "customers": [{
+    "name": "Customer X",
+    "plant_name": "Plant A",
+    "date_ranges": [{
+      "from_date": "2025-01-01",
+      "to_date": "2025-12-31",
+      "daily_demand": 80
+    }]
+  }],
+  "refineries": [{
+    "name": "Refinery A",
+    "plant_name": "Plant A",
+    "date_ranges": [{
+      "from_date": "2025-01-01",
+      "to_date": "2025-12-31",
+      "daily_refinery_supply": 50
+    }]
+  }]
+}</pre>
+                </div>
+                
+                <div class="flex gap-3 pt-4">
+                    <button type="submit" class="flex-1 bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 transition font-semibold">
+                        {% if master %}💾 Update Master Simulation{% else %}✨ Create Master Simulation{% endif %}
+                    </button>
+                    <a href="{% url 'lng_planner:dashboard' %}" class="flex-1 bg-gray-500 text-white px-6 py-3 rounded-lg hover:bg-gray-600 transition text-center font-semibold">
+                        Cancel
+                    </a>
+                </div>
+            </form>
+
+            {% if master %}
+            <div class="mt-6 pt-6 border-t">
+                <h3 class="font-bold text-gray-800 mb-3">Quick Actions:</h3>
+                <div class="flex gap-3">
+                    <a href="{% url 'lng_planner:setup_plants' master.id %}" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+                        🏭 Setup Plant Inventories
+                    </a>
+                    <a href="{% url 'lng_planner:refresh_master_sap' %}" 
+                       onclick="return confirm('Fetch and replace all data from SAP API?')"
+                       class="bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-600">
+                        🔄 Sync from SAP Now
+                    </a>
+                    <a href="{% url 'lng_planner:switch_simulation' master.id %}" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600">
+                        👁️ View Master Data
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

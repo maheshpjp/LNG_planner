@@ -1,0 +1,110 @@
+<!-- templates/lng_planner/create_from_master.html -->
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create New Simulation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen p-6">
+    <div class="max-w-3xl mx-auto">
+        <div class="bg-white rounded-lg shadow-lg p-8">
+            <h2 class="text-3xl font-bold text-gray-800 mb-2">Create New Simulation</h2>
+            <p class="text-gray-600 mb-6">
+                Your new simulation will be created from the master simulation with all data copied.
+            </p>
+
+            <!-- Master Simulation Preview -->
+            <div class="bg-blue-50 border-2 border-blue-200 rounded-lg p-6 mb-6">
+                <h3 class="font-bold text-blue-800 mb-3 flex items-center gap-2">
+                    <span class="text-2xl">📋</span>
+                    Master Simulation Details
+                </h3>
+                <div class="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                        <span class="text-gray-600">Name:</span>
+                        <span class="font-semibold ml-2">{{ master.name }}</span>
+                    </div>
+                    <div>
+                        <span class="text-gray-600">Period:</span>
+                        <span class="font-semibold ml-2">{{ master.start_date }} to {{ master.end_date }}</span>
+                    </div>
+                    <div>
+                        <span class="text-gray-600">Plants:</span>
+                        <span class="font-semibold ml-2">{{ master.plant_inventories.count }} plant(s)</span>
+                    </div>
+                    <div>
+                        <span class="text-gray-600">Data:</span>
+                        <span class="font-semibold ml-2">
+                            {{ master.suppliers.count }} suppliers, 
+                            {{ master.cargos.count }} cargos, 
+                            {{ master.customers.count }} customers
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- What will be copied -->
+            <div class="bg-green-50 border-l-4 border-green-500 p-4 mb-6 rounded">
+                <h3 class="font-bold text-green-800 mb-2">✅ What will be copied:</h3>
+                <ul class="list-disc list-inside text-green-700 space-y-1 text-sm">
+                    <li>All plant opening inventories</li>
+                    <li>All suppliers with their plants and daily supply rates</li>
+                    <li>All cargo deliveries with dates and amounts</li>
+                    <li>All customers with their plants and daily demands</li>
+                    <li>Start and end dates</li>
+                </ul>
+            </div>
+
+            <!-- Form -->
+            <form method="post" class="space-y-6">
+                {% csrf_token %}
+                
+                <div>
+                    <label for="name" class="block text-sm font-semibold text-gray-700 mb-2">
+                        Your Simulation Name *
+                    </label>
+                    <input 
+                        type="text" 
+                        name="name" 
+                        id="name"
+                        value="{{ suggested_name }}"
+                        required
+                        class="w-full border-2 border-gray-300 rounded-lg px-4 py-3 focus:border-blue-500 focus:outline-none"
+                        placeholder="e.g., Q1 2025 Scenario, Optimized Plan, etc."
+                    >
+                    <p class="text-gray-500 text-sm mt-2">
+                        Give your simulation a meaningful name so you can identify it later
+                    </p>
+                </div>
+
+                <div class="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded">
+                    <p class="text-yellow-800 text-sm">
+                        <strong>💡 Note:</strong> After creating, you can freely edit suppliers, cargos, customers, 
+                        and plant inventories in your personal copy. Changes won't affect the master simulation.
+                    </p>
+                </div>
+                
+                <div class="flex gap-3 pt-4">
+                    <button type="submit" class="flex-1 bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 transition font-semibold text-lg">
+                        ✨ Create My Simulation
+                    </button>
+                    <a href="{% url 'lng_planner:dashboard' %}" class="flex-1 bg-gray-500 text-white px-6 py-3 rounded-lg hover:bg-gray-600 transition text-center font-semibold text-lg">
+                        Cancel
+                    </a>
+                </div>
+            </form>
+
+            <!-- Additional Info -->
+            <div class="mt-6 pt-6 border-t text-center">
+                <p class="text-gray-600 text-sm">
+                    You can create multiple simulations to compare different scenarios. 
+                    Switch between them anytime from the dashboard.
+                </p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

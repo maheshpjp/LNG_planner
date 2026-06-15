@@ -1,0 +1,172 @@
+<!-- templates/lng_planner/refinery_form.html -->
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen p-6">
+    <div class="max-w-2xl mx-auto">
+        <div class="bg-white rounded-lg shadow-lg p-8">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">{{ title }}</h2>
+            
+            {% if form.errors %}
+            <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4 rounded">
+                <p class="font-bold">Please correct the errors below:</p>
+                <ul>
+                    {% for field, errors in form.errors.items %}
+                        {% for error in errors %}
+                            <li>{{ field }}: {{ error }}</li>
+                        {% endfor %}
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+            
+            {% if formset.non_form_errors %}
+            <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4 rounded">
+                <p class="font-bold">Please correct the errors below:</p>
+                <ul>
+                    {% for error in formset.non_form_errors %}
+                        <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+            
+            <form method="post" class="space-y-6" id="refinery-form">
+                {% csrf_token %}
+                
+                <div>
+                    <label for="id_plant" class="block text-sm font-semibold text-gray-700 mb-2">
+                        Plant (Supply To) *
+                    </label>
+                    {{ form.plant }}
+                    {% if form.plant.errors %}
+                        <p class="text-red-500 text-sm mt-1">{{ form.plant.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                
+                <div>
+                    <label for="id_name" class="block text-sm font-semibold text-gray-700 mb-2">
+                        Refinery Name *
+                    </label>
+                    {{ form.name }}
+                    {% if form.name.errors %}
+                        <p class="text-red-500 text-sm mt-1">{{ form.name.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                
+                <div>
+                    <label for="id_daily_refinery_supply" class="block text-sm font-semibold text-gray-700 mb-2">
+                        Daily Refinery Supply (MT/day) *
+                    </label>
+                    {{ form.daily_refinery_supply }}
+                    {% if form.daily_refinery_supply.errors %}
+                        <p class="text-red-500 text-sm mt-1">{{ form.daily_refinery_supply.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                
+                <!-- Date Ranges Section -->
+                <div class="border-t pt-6">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4">Supply Period Date Ranges</h3>
+                    
+                    {{ formset.management_form }}
+                    
+                    <div id="date-ranges-container" class="space-y-4">
+                        {% for form_item in formset %}
+                            <div class="date-range-item border border-gray-300 rounded-lg p-4 bg-gray-50">
+                                {% if not form_item.instance.pk and forloop.counter == formset|length %}
+                                    <!-- Empty extra form - hide by default -->
+                                    <div class="hidden" data-form-index="{{ forloop.counter0 }}">
+                                {% else %}
+                                    <div data-form-index="{{ forloop.counter0 }}">
+                                {% endif %}
+                                    <div class="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label for="{{ form_item.from_date.id_for_label }}" class="block text-sm font-semibold text-gray-700 mb-1">
+                                                From Date
+                                            </label>
+                                            {{ form_item.from_date }}
+                                            {% if form_item.from_date.errors %}
+                                                <p class="text-red-500 text-xs mt-1">{{ form_item.from_date.errors.0 }}</p>
+                                            {% endif %}
+                                        </div>
+                                        <div>
+                                            <label for="{{ form_item.to_date.id_for_label }}" class="block text-sm font-semibold text-gray-700 mb-1">
+                                                To Date
+                                            </label>
+                                            {{ form_item.to_date }}
+                                            {% if form_item.to_date.errors %}
+                                                <p class="text-red-500 text-xs mt-1">{{ form_item.to_date.errors.0 }}</p>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="mt-3 flex gap-2">
+                                        {% if form_item.DELETE %}
+                                            <label class="flex items-center gap-2 cursor-pointer">
+                                                {{ form_item.DELETE }}
+                                                <span class="text-sm text-red-600">Delete this range</span>
+                                            </label>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <button type="button" class="mt-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition" onclick="addDateRange()">
+                        + Add Date Range
+                    </button>
+                </div>
+                
+                <div class="flex gap-3 pt-4">
+                    <button type="submit" class="flex-1 bg-purple-500 text-white px-6 py-3 rounded-lg hover:bg-purple-600 transition font-semibold">
+                        Save Refinery
+                    </button>
+                    <a href="{% url 'lng_planner:dashboard' %}" class="flex-1 bg-gray-500 text-white px-6 py-3 rounded-lg hover:bg-gray-600 transition text-center font-semibold">
+                        Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        function addDateRange() {
+            const container = document.getElementById('date-ranges-container');
+            const formCount = document.getElementById('id_date_ranges-TOTAL_FORMS');
+            const currentCount = parseInt(formCount.value);
+            const lastForm = container.querySelector('.date-range-item:last-child');
+            
+            // Clone the last visible form
+            let newForm = lastForm.cloneNode(true);
+            
+            // Update form indices
+            const regex = /(\w+)-\d+(-\w+)?/g;
+            const replacement = `$1-${currentCount}$2`;
+            
+            newForm.innerHTML = newForm.innerHTML.replace(/id_date_ranges-\d+/g, `id_date_ranges-${currentCount}`);
+            newForm.innerHTML = newForm.innerHTML.replace(/-\d+-/g, `-${currentCount}-`);
+            newForm.innerHTML = newForm.innerHTML.replace(/for="id_date_ranges_\d+/g, `for="id_date_ranges_${currentCount}`);
+            
+            // Clear the input values
+            newForm.querySelectorAll('input[type="date"]').forEach(input => {
+                input.value = '';
+            });
+            
+            // Uncheck delete checkbox if exists
+            const deleteCheckbox = newForm.querySelector('input[type="checkbox"]');
+            if (deleteCheckbox) {
+                deleteCheckbox.checked = false;
+            }
+            
+            container.appendChild(newForm);
+            formCount.value = currentCount + 1;
+        }
+    </script>
+</body>
+</html>
