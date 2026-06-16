@@ -51,16 +51,6 @@
                     {% endif %}
                 </div>
 
-                <div>
-                    <label for="{{ form.daily_supply.id_for_label }}" class="block text-sm font-semibold text-gray-700 mb-2">
-                        Daily Supply (MT/day) *
-                    </label>
-                    {{ form.daily_supply }}
-                    {% if form.daily_supply.errors %}
-                    <p class="text-red-500 text-sm mt-1">{{ form.daily_supply.errors.0 }}</p>
-                    {% endif %}
-                </div>
-
                 <div class="border-t pt-6">
                     <div class="flex items-center justify-between mb-4">
                         <h3 class="text-lg font-bold text-gray-800">Supply Period Date Ranges</h3>
@@ -81,7 +71,7 @@
                             {% for hidden in form_item.hidden_fields %}
                                 {{ hidden }}
                             {% endfor %}
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div>
                                     <label for="{{ form_item.from_date.id_for_label }}" class="block text-sm font-semibold text-gray-700 mb-1">
                                         From Date
@@ -98,6 +88,15 @@
                                     {{ form_item.to_date }}
                                     {% if form_item.to_date.errors %}
                                     <p class="text-red-500 text-xs mt-1">{{ form_item.to_date.errors.0 }}</p>
+                                    {% endif %}
+                                </div>
+                                <div>
+                                    <label for="{{ form_item.daily_supply.id_for_label }}" class="block text-sm font-semibold text-gray-700 mb-1">
+                                        Daily Supply (MT/day)
+                                    </label>
+                                    {{ form_item.daily_supply }}
+                                    {% if form_item.daily_supply.errors %}
+                                    <p class="text-red-500 text-xs mt-1">{{ form_item.daily_supply.errors.0 }}</p>
                                     {% endif %}
                                 </div>
                             </div>
@@ -118,7 +117,7 @@
                             {% for hidden in formset.empty_form.hidden_fields %}
                                 {{ hidden }}
                             {% endfor %}
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div>
                                     <label for="{{ formset.empty_form.from_date.id_for_label }}" class="block text-sm font-semibold text-gray-700 mb-1">
                                         From Date
@@ -130,6 +129,12 @@
                                         To Date
                                     </label>
                                     {{ formset.empty_form.to_date }}
+                                </div>
+                                <div>
+                                    <label for="{{ formset.empty_form.daily_supply.id_for_label }}" class="block text-sm font-semibold text-gray-700 mb-1">
+                                        Daily Supply (MT/day)
+                                    </label>
+                                    {{ formset.empty_form.daily_supply }}
                                 </div>
                             </div>
                             {% if formset.empty_form.DELETE %}

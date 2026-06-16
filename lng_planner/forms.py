@@ -54,21 +54,21 @@ class PlantInventoryForm(forms.ModelForm):
 class SupplierForm(forms.ModelForm):
     class Meta:
         model = Supplier
-        fields = ['name', 'plant', 'daily_supply']
+        fields = ['name', 'plant']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Supplier Name'}),
             'plant': forms.Select(attrs={'class': 'form-control'}),
-            'daily_supply': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'MT/day', 'step': '0.01'}),
         }
 
 
 class SupplierDateForm(forms.ModelForm):
     class Meta:
         model = SupplierDate
-        fields = ['from_date', 'to_date']
+        fields = ['from_date', 'to_date', 'daily_supply']
         widgets = {
             'from_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'to_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'daily_supply': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'MT/day', 'step': '0.01'}),
         }
 
 
@@ -95,21 +95,21 @@ class CargoForm(forms.ModelForm):
 class CustomerForm(forms.ModelForm):
     class Meta:
         model = Customer
-        fields = ['name', 'plant', 'daily_demand']
+        fields = ['name', 'plant']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Customer Name'}),
             'plant': forms.Select(attrs={'class': 'form-control'}),
-            'daily_demand': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'MT/day', 'step': '0.01'}),
         }
 
 
 class CustomerDateForm(forms.ModelForm):
     class Meta:
         model = CustomerDate
-        fields = ['from_date', 'to_date']
+        fields = ['from_date', 'to_date', 'daily_demand']
         widgets = {
             'from_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'to_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'daily_demand': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'MT/day', 'step': '0.01'}),
         }
 
 
@@ -148,21 +148,21 @@ class APIConfigurationForm(forms.ModelForm):
 class RefineryForm(forms.ModelForm):
     class Meta:
         model = Refinery
-        fields = ['name', 'plant', 'daily_refinery_supply']
+        fields = ['name', 'plant']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Refinery Name'}),
             'plant': forms.Select(attrs={'class': 'form-control'}),
-            'daily_refinery_supply': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'MT/day', 'step': '0.01'}),
         }
 
 
 class RefineryDateForm(forms.ModelForm):
     class Meta:
         model = RefineryDate
-        fields = ['from_date', 'to_date']
+        fields = ['from_date', 'to_date', 'daily_refinery_supply']
         widgets = {
             'from_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'to_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'daily_refinery_supply': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'MT/day', 'step': '0.01'}),
         }
 
 

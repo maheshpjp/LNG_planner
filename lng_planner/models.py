@@ -70,14 +70,13 @@ class Supplier(models.Model):
     simulation = models.ForeignKey(Simulation, on_delete=models.CASCADE, related_name='suppliers')
     plant = models.ForeignKey(Plant, on_delete=models.CASCADE, related_name='suppliers')
     name = models.CharField(max_length=200)
-    daily_supply = models.FloatField(validators=[MinValueValidator(0)], help_text="MT per day")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ['plant__name', 'name']
 
     def __str__(self):
-        return f"{self.name} → {self.plant.name} - {self.daily_supply} MT/day"
+        return f"{self.name} → {self.plant.name}"
 
 class SupplierDate(models.Model):
     supplier = models.ForeignKey(
@@ -88,6 +87,7 @@ class SupplierDate(models.Model):
 
     from_date = models.DateField()
     to_date = models.DateField()
+    daily_supply = models.FloatField(validators=[MinValueValidator(0)], help_text="MT per day")
 
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -95,7 +95,7 @@ class SupplierDate(models.Model):
         ordering = ['from_date']
 
     def __str__(self):
-        return f"{self.supplier.name}: {self.from_date} - {self.to_date}"
+        return f"{self.supplier.name}: {self.from_date} - {self.to_date} ({self.daily_supply} MT/day)"
 
 class Cargo(models.Model):
     """One-time cargo deliveries"""
@@ -118,14 +118,13 @@ class Customer(models.Model):
     simulation = models.ForeignKey(Simulation, on_delete=models.CASCADE, related_name='customers')
     plant = models.ForeignKey(Plant, on_delete=models.CASCADE, related_name='customers')
     name = models.CharField(max_length=200)
-    daily_demand = models.FloatField(validators=[MinValueValidator(0)], help_text="MT per day")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ['plant__name', 'name']
 
     def __str__(self):
-        return f"{self.name} ← {self.plant.name} - {self.daily_demand} MT/day"
+        return f"{self.name} ← {self.plant.name}"
 
 class CustomerDate(models.Model):
     customer = models.ForeignKey(
@@ -136,6 +135,7 @@ class CustomerDate(models.Model):
 
     from_date = models.DateField()
     to_date = models.DateField()
+    daily_demand = models.FloatField(validators=[MinValueValidator(0)], help_text="MT per day")
 
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -143,7 +143,7 @@ class CustomerDate(models.Model):
         ordering = ['from_date']
 
     def __str__(self):
-        return f"{self.customer.name}: {self.from_date} - {self.to_date}"
+        return f"{self.customer.name}: {self.from_date} - {self.to_date} ({self.daily_demand} MT/day)"
 
 class Refinery(models.Model):
     simulation = models.ForeignKey(
@@ -160,18 +160,13 @@ class Refinery(models.Model):
 
     name = models.CharField(max_length=200)
 
-    daily_refinery_supply = models.FloatField(
-        validators=[MinValueValidator(0)],
-        help_text="MT per day"
-    )
-
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ['plant__name', 'name']
 
     def __str__(self):
-        return f"{self.name} → {self.plant.name} - {self.daily_refinery_supply} MT/day"
+        return f"{self.name} → {self.plant.name}"
     
 class RefineryDate(models.Model):
     refinery = models.ForeignKey(
@@ -182,6 +177,10 @@ class RefineryDate(models.Model):
 
     from_date = models.DateField()
     to_date = models.DateField()
+    daily_refinery_supply = models.FloatField(
+        validators=[MinValueValidator(0)],
+        help_text="MT per day"
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -189,7 +188,7 @@ class RefineryDate(models.Model):
         ordering = ['from_date']
 
     def __str__(self):
-        return f"{self.refinery.name}: {self.from_date} - {self.to_date}"
+        return f"{self.refinery.name}: {self.from_date} - {self.to_date} ({self.daily_refinery_supply} MT/day)"
 
 
 class APIConfiguration(models.Model):

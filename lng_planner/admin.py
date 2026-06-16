@@ -20,19 +20,19 @@ class PlantInventoryInline(admin.TabularInline):
 class SupplierDateInline(admin.TabularInline):
     model = SupplierDate
     extra = 1
-    fields = ['from_date', 'to_date']
+    fields = ['from_date', 'to_date', 'daily_supply']
 
 
 class SupplierInline(admin.TabularInline):
     model = Supplier
     extra = 1
-    fields = ['name', 'plant', 'daily_supply']
+    fields = ['name', 'plant']
 
 
 class CustomerDateInline(admin.TabularInline):
     model = CustomerDate
     extra = 1
-    fields = ['from_date', 'to_date']
+    fields = ['from_date', 'to_date', 'daily_demand']
 
 
 class CargoInline(admin.TabularInline):
@@ -44,13 +44,13 @@ class CargoInline(admin.TabularInline):
 class CustomerInline(admin.TabularInline):
     model = Customer
     extra = 1
-    fields = ['name', 'plant', 'daily_demand']
+    fields = ['name', 'plant']
 
 
 class RefineryDateInline(admin.TabularInline):
     model = RefineryDate
     extra = 1
-    fields = ['from_date', 'to_date']
+    fields = ['from_date', 'to_date', 'daily_refinery_supply']
 
 
 class RefineryInline(admin.TabularInline):
@@ -105,7 +105,7 @@ class SimulationAdmin(admin.ModelAdmin):
 
 @admin.register(Supplier)
 class SupplierAdmin(admin.ModelAdmin):
-    list_display = ['name', 'plant', 'simulation', 'daily_supply']
+    list_display = ['name', 'plant', 'simulation']
     list_filter = ['simulation', 'plant', 'created_at']
     search_fields = ['name', 'simulation__name', 'plant__name']
     date_hierarchy = 'created_at'
@@ -114,7 +114,7 @@ class SupplierAdmin(admin.ModelAdmin):
 
 @admin.register(SupplierDate)
 class SupplierDateAdmin(admin.ModelAdmin):
-    list_display = ['supplier', 'from_date', 'to_date']
+    list_display = ['supplier', 'from_date', 'to_date', 'daily_supply']
     list_filter = ['from_date', 'to_date']
     search_fields = ['supplier__name']
     date_hierarchy = 'from_date'
@@ -130,7 +130,7 @@ class CargoAdmin(admin.ModelAdmin):
 
 @admin.register(Customer)
 class CustomerAdmin(admin.ModelAdmin):
-    list_display = ['name', 'plant', 'simulation', 'daily_demand']
+    list_display = ['name', 'plant', 'simulation']
     list_filter = ['simulation', 'plant', 'created_at']
     search_fields = ['name', 'simulation__name', 'plant__name']
     date_hierarchy = 'created_at'
@@ -139,7 +139,7 @@ class CustomerAdmin(admin.ModelAdmin):
 
 @admin.register(CustomerDate)
 class CustomerDateAdmin(admin.ModelAdmin):
-    list_display = ['customer', 'from_date', 'to_date']
+    list_display = ['customer', 'from_date', 'to_date', 'daily_demand']
     list_filter = ['from_date', 'to_date']
     search_fields = ['customer__name']
     date_hierarchy = 'from_date'
@@ -147,7 +147,7 @@ class CustomerDateAdmin(admin.ModelAdmin):
 
 @admin.register(Refinery)
 class RefineryAdmin(admin.ModelAdmin):
-    list_display = ['name', 'plant', 'simulation', 'daily_refinery_supply']
+    list_display = ['name', 'plant', 'simulation']
     list_filter = ['simulation', 'plant', 'created_at']
     search_fields = ['name', 'simulation__name', 'plant__name']
     date_hierarchy = 'created_at'
@@ -156,7 +156,7 @@ class RefineryAdmin(admin.ModelAdmin):
 
 @admin.register(RefineryDate)
 class RefineryDateAdmin(admin.ModelAdmin):
-    list_display = ['refinery', 'from_date', 'to_date']
+    list_display = ['refinery', 'from_date', 'to_date', 'daily_refinery_supply']
     list_filter = ['from_date', 'to_date']
     search_fields = ['refinery__name']
     date_hierarchy = 'from_date'

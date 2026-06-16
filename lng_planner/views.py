@@ -98,15 +98,15 @@ def create_simulation(request):
             new_supplier = Supplier.objects.create(
                 simulation=new_sim,
                 plant=supplier.plant,
-                name=supplier.name,
-                daily_supply=supplier.daily_supply
+                name=supplier.name
             )
-            # Copy supplier date ranges
+            # Copy supplier date ranges with quantities
             for supplier_date in supplier.date_ranges.all():
                 SupplierDate.objects.create(
                     supplier=new_supplier,
                     from_date=supplier_date.from_date,
-                    to_date=supplier_date.to_date
+                    to_date=supplier_date.to_date,
+                    daily_supply=supplier_date.daily_supply
                 )
         
         for cargo in master.cargos.all():
@@ -122,30 +122,30 @@ def create_simulation(request):
             new_customer = Customer.objects.create(
                 simulation=new_sim,
                 plant=customer.plant,
-                name=customer.name,
-                daily_demand=customer.daily_demand
+                name=customer.name
             )
-            # Copy customer date ranges
+            # Copy customer date ranges with quantities
             for customer_date in customer.date_ranges.all():
                 CustomerDate.objects.create(
                     customer=new_customer,
                     from_date=customer_date.from_date,
-                    to_date=customer_date.to_date
+                    to_date=customer_date.to_date,
+                    daily_demand=customer_date.daily_demand
                 )
         
         for refinery in master.refineries.all():
             new_refinery = Refinery.objects.create(
                 simulation=new_sim,
                 plant=refinery.plant,
-                name=refinery.name,
-                daily_refinery_supply=refinery.daily_refinery_supply
+                name=refinery.name
             )
-            # Copy refinery date ranges
+            # Copy refinery date ranges with quantities
             for refinery_date in refinery.date_ranges.all():
                 RefineryDate.objects.create(
                     refinery=new_refinery,
                     from_date=refinery_date.from_date,
-                    to_date=refinery_date.to_date
+                    to_date=refinery_date.to_date,
+                    daily_refinery_supply=refinery_date.daily_refinery_supply
                 )
         
         messages.success(request, f'Simulation "{new_sim.name}" created from master! You can now edit it.')
@@ -812,11 +812,11 @@ def export_json(request, simulation_id):
             {
                 'name': s.name,
                 'plant_name': s.plant.name,
-                'daily_supply': float(s.daily_supply),
                 'date_ranges': [
                     {
                         'from_date': str(sd.from_date),
-                        'to_date': str(sd.to_date)
+                        'to_date': str(sd.to_date),
+                        'daily_supply': float(sd.daily_supply)
                     }
                     for sd in s.date_ranges.all()
                 ]
@@ -836,11 +836,11 @@ def export_json(request, simulation_id):
             {
                 'name': c.name,
                 'plant_name': c.plant.name,
-                'daily_demand': float(c.daily_demand),
                 'date_ranges': [
                     {
                         'from_date': str(cd.from_date),
-                        'to_date': str(cd.to_date)
+                        'to_date': str(cd.to_date),
+                        'daily_demand': float(cd.daily_demand)
                     }
                     for cd in c.date_ranges.all()
                 ]
@@ -851,11 +851,11 @@ def export_json(request, simulation_id):
             {
                 'name': r.name,
                 'plant_name': r.plant.name,
-                'daily_refinery_supply': float(r.daily_refinery_supply),
                 'date_ranges': [
                     {
                         'from_date': str(rd.from_date),
-                        'to_date': str(rd.to_date)
+                        'to_date': str(rd.to_date),
+                        'daily_refinery_supply': float(rd.daily_refinery_supply)
                     }
                     for rd in r.date_ranges.all()
                 ]
@@ -901,14 +901,14 @@ def import_json(request, simulation_id):
                         supplier = Supplier.objects.create(
                             simulation=simulation,
                             plant=plant,
-                            name=s['name'],
-                            daily_supply=s['daily_supply']
+                            name=s['name']
                         )
                         for date_range in s.get('date_ranges', []):
                             SupplierDate.objects.create(
                                 supplier=supplier,
                                 from_date=date_range['from_date'],
-                                to_date=date_range['to_date']
+                                to_date=date_range['to_date'],
+                                daily_supply=date_range.get('daily_supply', 0)
                             )
                 
                 if 'cargos' in data:
@@ -928,14 +928,14 @@ def import_json(request, simulation_id):
                         customer = Customer.objects.create(
                             simulation=simulation,
                             plant=plant,
-                            name=c['name'],
-                            daily_demand=c['daily_demand']
+                            name=c['name']
                         )
                         for date_range in c.get('date_ranges', []):
                             CustomerDate.objects.create(
                                 customer=customer,
                                 from_date=date_range['from_date'],
-                                to_date=date_range['to_date']
+                                to_date=date_range['to_date'],
+                                daily_demand=date_range.get('daily_demand', 0)
                             )
 
                 if 'refineries' in data:
@@ -944,14 +944,14 @@ def import_json(request, simulation_id):
                         refinery = Refinery.objects.create(
                             simulation=simulation,
                             plant=plant,
-                            name=r['name'],
-                            daily_refinery_supply=r['daily_refinery_supply']
+                            name=r['name']
                         )
                         for date_range in r.get('date_ranges', []):
                             RefineryDate.objects.create(
                                 refinery=refinery,
                                 from_date=date_range['from_date'],
-                                to_date=date_range['to_date']
+                                to_date=date_range['to_date'],
+                                daily_refinery_supply=date_range.get('daily_refinery_supply', 0)
                             )
                 
                 messages.success(request, 'Data imported successfully!')
@@ -1073,7 +1073,7 @@ def get_simulation_data(simulation):
                 'id': customer.id,
                 'name': customer.name,
                 'plant': plant,
-                'daily_demand': float(customer.daily_demand),
+                'daily_demand': sum(float(cd.daily_demand) for cd in customer.date_ranges.all()) if customer.date_ranges.exists() else 0,
                 'ranges': customer.date_ranges.all().order_by('from_date'),
             }
             for customer in customer_qs.filter(plant=plant).order_by('name')
@@ -1142,7 +1142,7 @@ def calculate_daily_data(simulation):
                 # Supplier contributes only when the current date is within any of its active date ranges.
                 for supplier_date in supplier.date_ranges.all():
                     if supplier_date.from_date <= current_date <= supplier_date.to_date:
-                        amount = float(supplier.daily_supply)
+                        amount = float(supplier_date.daily_supply)
                         supplies.append({'type': 'supplier', 'name': supplier.name, 'amount': amount})
                         plant_supply += amount
                         break  # Only count once per supplier per day
@@ -1172,15 +1172,14 @@ def calculate_daily_data(simulation):
                             'preference': _get_customer_priority(customer),
                             'ranges': [],  # Track individual date ranges
                         }
-                    # Add demand from overlapping date ranges for the same customer.
-                    customers_today[customer.name]['total_demand'] += float(customer.daily_demand)
-                    # Collect contributing ranges
+                    # Collect contributing ranges and sum their demands
                     for customer_date in customer.date_ranges.all():
                         if customer_date.from_date <= current_date <= customer_date.to_date:
+                            customers_today[customer.name]['total_demand'] += float(customer_date.daily_demand)
                             customers_today[customer.name]['ranges'].append({
                                 'from_date': customer_date.from_date,
                                 'to_date': customer_date.to_date,
-                                'daily_demand': float(customer.daily_demand),
+                                'daily_demand': float(customer_date.daily_demand),
                             })
                     # Prefer the highest priority (lowest numeric preference) across ranges.
                     customers_today[customer.name]['preference'] = min(
@@ -1261,23 +1260,23 @@ def initialize_sample_data(simulation):
     
     # Add sample suppliers with date ranges
     supplier_a = Supplier.objects.create(
-        simulation=simulation, plant=plant_list[0], name='Supplier A',
-        daily_supply=100
+        simulation=simulation, plant=plant_list[0], name='Supplier A'
     )
     SupplierDate.objects.create(
         supplier=supplier_a,
         from_date=simulation.start_date,
-        to_date=simulation.end_date
+        to_date=simulation.end_date,
+        daily_supply=100
     )
     
     supplier_b = Supplier.objects.create(
-        simulation=simulation, plant=plant_list[1], name='Supplier B',
-        daily_supply=120
+        simulation=simulation, plant=plant_list[1], name='Supplier B'
     )
     SupplierDate.objects.create(
         supplier=supplier_b,
         from_date=simulation.start_date,
-        to_date=simulation.start_date + timedelta(days=180)
+        to_date=simulation.start_date + timedelta(days=180),
+        daily_supply=120
     )
     
     Cargo.objects.create(
@@ -1291,23 +1290,23 @@ def initialize_sample_data(simulation):
     
     # Add sample customers with date ranges
     customer_x = Customer.objects.create(
-        simulation=simulation, plant=plant_list[0], name='Customer X',
-        daily_demand=80
+        simulation=simulation, plant=plant_list[0], name='Customer X'
     )
     CustomerDate.objects.create(
         customer=customer_x,
         from_date=simulation.start_date,
-        to_date=simulation.end_date
+        to_date=simulation.end_date,
+        daily_demand=80
     )
     
     customer_y = Customer.objects.create(
-        simulation=simulation, plant=plant_list[1], name='Customer Y',
-        daily_demand=70
+        simulation=simulation, plant=plant_list[1], name='Customer Y'
     )
     CustomerDate.objects.create(
         customer=customer_y,
         from_date=simulation.start_date,
-        to_date=simulation.start_date + timedelta(days=180)
+        to_date=simulation.start_date + timedelta(days=180),
+        daily_demand=70
     )
 
 
@@ -1371,14 +1370,14 @@ def copy_from_master(request):
     
     for supplier in master.suppliers.all():
         new_supplier = Supplier.objects.create(
-            simulation=new_sim, plant=supplier.plant, name=supplier.name,
-            daily_supply=supplier.daily_supply
+            simulation=new_sim, plant=supplier.plant, name=supplier.name
         )
         for supplier_date in supplier.date_ranges.all():
             SupplierDate.objects.create(
                 supplier=new_supplier,
                 from_date=supplier_date.from_date,
-                to_date=supplier_date.to_date
+                to_date=supplier_date.to_date,
+                daily_supply=supplier_date.daily_supply
             )
     
     for cargo in master.cargos.all():
@@ -1389,26 +1388,26 @@ def copy_from_master(request):
     
     for customer in master.customers.all():
         new_customer = Customer.objects.create(
-            simulation=new_sim, plant=customer.plant, name=customer.name,
-            daily_demand=customer.daily_demand
+            simulation=new_sim, plant=customer.plant, name=customer.name
         )
         for customer_date in customer.date_ranges.all():
             CustomerDate.objects.create(
                 customer=new_customer,
                 from_date=customer_date.from_date,
-                to_date=customer_date.to_date
+                to_date=customer_date.to_date,
+                daily_demand=customer_date.daily_demand
             )
     
     for refinery in master.refineries.all():
         new_refinery = Refinery.objects.create(
-            simulation=new_sim, plant=refinery.plant, name=refinery.name,
-            daily_refinery_supply=refinery.daily_refinery_supply
+            simulation=new_sim, plant=refinery.plant, name=refinery.name
         )
         for refinery_date in refinery.date_ranges.all():
             RefineryDate.objects.create(
                 refinery=new_refinery,
                 from_date=refinery_date.from_date,
-                to_date=refinery_date.to_date
+                to_date=refinery_date.to_date,
+                daily_refinery_supply=refinery_date.daily_refinery_supply
             )
     
     messages.success(request, f'Created new simulation from master: {new_sim.name}')
@@ -1476,14 +1475,14 @@ def refresh_master_from_sap(request):
                 try:
                     plant = get_or_create_plant(s['plant_name'], s.get('location', ''))
                     supplier = Supplier.objects.create(
-                        simulation=master, plant=plant, name=s['name'],
-                        daily_supply=s['daily_supply']
+                        simulation=master, plant=plant, name=s['name']
                     )
-                    # Create supplier date ranges
+                    # Create supplier date ranges with daily supply
                     SupplierDate.objects.create(
                         supplier=supplier,
                         from_date=s['from_date'],
-                        to_date=s['to_date']
+                        to_date=s['to_date'],
+                        daily_supply=s.get('daily_supply', 0)
                     )
                     counts['suppliers'] += 1
                 except Exception as e:
@@ -1506,14 +1505,14 @@ def refresh_master_from_sap(request):
                 try:
                     plant = get_or_create_plant(c['plant_name'], c.get('location', ''))
                     customer = Customer.objects.create(
-                        simulation=master, plant=plant, name=c['name'],
-                        daily_demand=c['daily_demand']
+                        simulation=master, plant=plant, name=c['name']
                     )
-                    # Create customer date ranges
+                    # Create customer date ranges with daily demand
                     CustomerDate.objects.create(
                         customer=customer,
                         from_date=c['from_date'],
-                        to_date=c['to_date']
+                        to_date=c['to_date'],
+                        daily_demand=c.get('daily_demand', 0)
                     )
                     counts['customers'] += 1
                 except Exception as e:
