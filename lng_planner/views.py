@@ -2,12 +2,15 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponse
 from django.contrib import messages
+from django.db.models import Q
 from datetime import datetime, timedelta
 from decimal import Decimal
 import json
 import requests
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
+from .services.llm_client import invoke_llm, summarize_simulation, LLMClientError
+from .services.sap_client import fetch_sap_data, SAPClientError
 from .models import (
     Simulation, Supplier, Cargo, Customer, Plant, PlantInventory, APIConfiguration,
     SupplierDate, CustomerDate, Refinery, RefineryDate, SimulationComment
@@ -50,17 +53,39 @@ def dashboard(request):
         'active_simulation': active_simulation,
         'master_simulation': master_simulation,
         'is_viewing_master': active_simulation and active_simulation.is_master if active_simulation else False,
+        'current_section': 'dashboard',
         'comment_form': SimulationCommentForm(),
     }
     
     if active_simulation:
         context.update(get_simulation_data(active_simulation))
-    
+
     print(f"DEBUG - User: {request.user.username}, is_staff: {request.user.is_staff}")
     print(f"DEBUG - Master exists: {master_simulation is not None}")
     print(f"DEBUG - Master: {master_simulation}")
     
     return render(request, 'lng_planner/dashboard.html', context)
+
+
+def get_active_simulation(request):
+    master_simulation = Simulation.objects.filter(is_master=True).first()
+    simulations = Simulation.objects.filter(user=request.user, is_master=False)
+    active_simulation = simulations.filter(is_active=True).first()
+    if not active_simulation:
+        active_simulation = simulations.first() or master_simulation
+    return active_simulation
+
+
+def get_section_context(request, section_name, extras=None):
+    active_simulation = get_active_simulation(request)
+    context = {
+        'active_simulation': active_simulation,
+        'is_viewing_master': active_simulation.is_master if active_simulation else False,
+        'current_section': section_name,
+    }
+    if extras:
+        context.update(extras)
+    return context
 
 
 @login_required
@@ -525,6 +550,91 @@ def delete_refinery(request, refinery_id):
     refinery.delete()
     messages.success(request, 'Refinery deleted successfully!')
     return redirect('lng_planner:dashboard')
+
+
+# ── Section list views ─────────────────────────────────────────────────────
+@login_required
+def supplier_list(request):
+    active_simulation = get_active_simulation(request)
+    if not active_simulation:
+        messages.warning(request, 'No available simulation. Create one first.')
+        return redirect('lng_planner:dashboard')
+
+    search_query = request.GET.get('q', '').strip()
+    suppliers = active_simulation.suppliers.select_related('plant').prefetch_related('date_ranges').order_by('name')
+    if search_query:
+        suppliers = suppliers.filter(
+            Q(name__icontains=search_query) |
+            Q(plant__name__icontains=search_query)
+        )
+
+    return render(request, 'lng_planner/supplier_list.html', get_section_context(request, 'suppliers', {
+        'suppliers': suppliers,
+        'search_query': search_query,
+    }))
+
+
+@login_required
+def cargo_list(request):
+    active_simulation = get_active_simulation(request)
+    if not active_simulation:
+        messages.warning(request, 'No available simulation. Create one first.')
+        return redirect('lng_planner:dashboard')
+
+    search_query = request.GET.get('q', '').strip()
+    cargos = active_simulation.cargos.select_related('plant').order_by('delivery_date')
+    if search_query:
+        cargos = cargos.filter(
+            Q(cargo_name__icontains=search_query) |
+            Q(plant__name__icontains=search_query)
+        )
+
+    return render(request, 'lng_planner/cargo_list.html', get_section_context(request, 'cargos', {
+        'cargos': cargos,
+        'search_query': search_query,
+    }))
+
+
+@login_required
+def customer_list(request):
+    active_simulation = get_active_simulation(request)
+    if not active_simulation:
+        messages.warning(request, 'No available simulation. Create one first.')
+        return redirect('lng_planner:dashboard')
+
+    search_query = request.GET.get('q', '').strip()
+    customers = active_simulation.customers.select_related('plant').prefetch_related('date_ranges').order_by('name')
+    if search_query:
+        customers = customers.filter(
+            Q(name__icontains=search_query) |
+            Q(plant__name__icontains=search_query)
+        )
+
+    return render(request, 'lng_planner/customer_list.html', get_section_context(request, 'customers', {
+        'customers': customers,
+        'search_query': search_query,
+    }))
+
+
+@login_required
+def refinery_list(request):
+    active_simulation = get_active_simulation(request)
+    if not active_simulation:
+        messages.warning(request, 'No available simulation. Create one first.')
+        return redirect('lng_planner:dashboard')
+
+    search_query = request.GET.get('q', '').strip()
+    refineries = active_simulation.refineries.select_related('plant').prefetch_related('date_ranges').order_by('name')
+    if search_query:
+        refineries = refineries.filter(
+            Q(name__icontains=search_query) |
+            Q(plant__name__icontains=search_query)
+        )
+
+    return render(request, 'lng_planner/refinery_list.html', get_section_context(request, 'refineries', {
+        'refineries': refineries,
+        'search_query': search_query,
+    }))
 
 
 # ── Simulation Comment views ────────────────────────────────────────────────
@@ -1432,9 +1542,7 @@ def refresh_master_from_sap(request):
         return redirect('lng_planner:manage_master')
     
     try:
-        response = requests.get(master.sap_api_url, timeout=30)
-        response.raise_for_status()
-        sap_data = response.json()
+        sap_data = fetch_sap_data(master.sap_api_url)
         
         master.suppliers.all().delete()
         master.cargos.all().delete()
@@ -1548,9 +1656,50 @@ def refresh_master_from_sap(request):
         messages.error(request, f'❌ HTTP Error: SAP API returned error {e.response.status_code}')
     except json.JSONDecodeError:
         messages.error(request, '📄 Invalid JSON: SAP API did not return valid JSON data')
+    except LLMClientError as e:
+        messages.error(request, f'LLM integration error: {str(e)}')
+    except SAPClientError as e:
+        messages.error(request, f'SAP integration error: {str(e)}')
     except Exception as e:
         messages.error(request, f'❌ Unexpected error: {str(e)}')
     
+    return redirect('lng_planner:dashboard')
+
+
+@login_required
+def summarize_simulation_with_llm(request, simulation_id):
+    """Generate a short LNG planning summary using the configured LLM."""
+    simulation = get_object_or_404(Simulation, pk=simulation_id)
+
+    if not simulation.is_master and simulation.user != request.user and not request.user.is_staff:
+        messages.error(request, 'You cannot summarize this simulation.')
+        return redirect('lng_planner:dashboard')
+
+    data_lines = [
+        f"Simulation: {simulation.name}",
+        f"Date range: {simulation.start_date} to {simulation.end_date}",
+        f"Plants: {simulation.plant_inventories.count()}",
+        f"Suppliers: {simulation.suppliers.count()}",
+        f"Cargos: {simulation.cargos.count()}",
+        f"Customers: {simulation.customers.count()}",
+    ]
+
+    for pi in simulation.plant_inventories.select_related('plant'):
+        data_lines.append(f"Plant {pi.plant.name}: opening inventory {pi.opening_inventory}")
+
+    prompt = (
+        'Provide a concise review of this LNG simulation and identify any scheduling or inventory risks:\n\n'
+        + '\n'.join(data_lines)
+    )
+
+    try:
+        summary = summarize_simulation(prompt, provider='qwen')
+        return JsonResponse({'summary': summary})
+    except LLMClientError as e:
+        messages.error(request, f'LLM summary error: {str(e)}')
+    except Exception as e:
+        messages.error(request, f'Unexpected error: {str(e)}')
+
     return redirect('lng_planner:dashboard')
 
 

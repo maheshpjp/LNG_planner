@@ -1,0 +1,91 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}LNG Planning & Simulation{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .nav-link {
+            transition: all 0.2s ease;
+        }
+        .nav-link.active {
+            background-color: #2563EB;
+            color: white;
+        }
+        .nav-link:hover {
+            background-color: #E2E8F0;
+        }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+    <div class="min-h-screen">
+        <header class="bg-white shadow-sm">
+            <div class="max-w-7xl mx-auto px-6 py-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold text-slate-900">LNG Planning & Simulation</h1>
+                    {% if active_simulation %}
+                    <p class="text-sm text-slate-600 mt-1">
+                        Active simulation: <strong>{{ active_simulation.name }}</strong>
+                        {% if active_simulation.start_date and active_simulation.end_date %}
+                            • {{ active_simulation.start_date }} to {{ active_simulation.end_date }}
+                        {% endif %}
+                        {% if is_viewing_master %}
+                            • <span class="text-orange-600">Master simulation</span>
+                        {% endif %}
+                    </p>
+                    {% endif %}
+                </div>
+                <div class="flex flex-wrap gap-3">
+                    <a href="{% url 'lng_planner:create_simulation' %}" class="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700">
+                        ➕ New Simulation
+                    </a>
+                    <a href="{% url 'lng_planner:manage_plants' %}" class="inline-flex items-center rounded-md bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200">
+                        🌱 Manage Plants
+                    </a>
+                    <a href="{% url 'lng_planner:dashboard' %}" class="inline-flex items-center rounded-md bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200">
+                        📊 Dashboard
+                    </a>
+                </div>
+            </div>
+            <nav class="bg-slate-50 border-t border-slate-200">
+                <div class="max-w-7xl mx-auto px-6 py-3 flex flex-wrap gap-2">
+                    <a href="{% url 'lng_planner:dashboard' %}" class="nav-link inline-flex items-center rounded-md px-4 py-2 text-sm font-medium {% if current_section == 'dashboard' %}active{% else %}text-slate-700{% endif %}">
+                        Dashboard
+                    </a>
+                    <a href="{% url 'lng_planner:supplier_list' %}" class="nav-link inline-flex items-center rounded-md px-4 py-2 text-sm font-medium {% if current_section == 'suppliers' %}active{% else %}text-slate-700{% endif %}">
+                        Suppliers
+                    </a>
+                    <a href="{% url 'lng_planner:cargo_list' %}" class="nav-link inline-flex items-center rounded-md px-4 py-2 text-sm font-medium {% if current_section == 'cargos' %}active{% else %}text-slate-700{% endif %}">
+                        Cargos
+                    </a>
+                    <a href="{% url 'lng_planner:customer_list' %}" class="nav-link inline-flex items-center rounded-md px-4 py-2 text-sm font-medium {% if current_section == 'customers' %}active{% else %}text-slate-700{% endif %}">
+                        Customers
+                    </a>
+                    <a href="{% url 'lng_planner:refinery_list' %}" class="nav-link inline-flex items-center rounded-md px-4 py-2 text-sm font-medium {% if current_section == 'refineries' %}active{% else %}text-slate-700{% endif %}">
+                        Refineries
+                    </a>
+                </div>
+            </nav>
+        </header>
+
+        <main class="max-w-7xl mx-auto px-6 py-6">
+            {% if messages %}
+            <div class="space-y-3 mb-6">
+                {% for message in messages %}
+                <div class="rounded-lg border-l-4 p-4 {% if message.tags == 'success' %}bg-emerald-50 border-emerald-500 text-emerald-700{% elif message.tags == 'error' %}bg-rose-50 border-rose-500 text-rose-700{% else %}bg-sky-50 border-sky-500 text-sky-700{% endif %}">
+                    {{ message }}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

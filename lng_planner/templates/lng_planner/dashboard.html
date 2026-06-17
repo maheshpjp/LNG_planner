@@ -1,50 +1,47 @@
+{% extends 'lng_planner/base.html' %}
 {% load static %}
 {% load lng_filters %}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LNG Annual Planning & Simulation Tool</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        .sticky-col {
-            position: sticky;
-            left: 0;
-            z-index: 10;
-        }
-        .admin-buttons {
-            display: flex !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-        }
-        /* Collapsible sections */
-        .collapsible-body {
-            overflow-y: auto;
-            transition: max-height 0.35s ease, opacity 0.35s ease, padding 0.35s ease;
-            opacity: 1;
-        }
-        .collapsible-body.collapsed {
-            max-height: 0 !important;
-            opacity: 0;
-            padding-top: 0 !important;
-            padding-bottom: 0 !important;
-            overflow: hidden;
-        }
-        .chevron-rotated {
-            transform: rotate(-90deg);
-        }
-    </style>
-</head>
-<body class="bg-gradient-to-br from-blue-50 to-indigo-100">
+
+{% block title %}Dashboard | LNG Planning{% endblock %}
+
+{% block extra_head %}
+<style>
+    .sticky-col {
+        position: sticky;
+        left: 0;
+        z-index: 10;
+    }
+    .admin-buttons {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+    .collapsible-body {
+        overflow-y: auto;
+        transition: max-height 0.35s ease, opacity 0.35s ease, padding 0.35s ease;
+        opacity: 1;
+    }
+    .collapsible-body.collapsed {
+        max-height: 0 !important;
+        opacity: 0;
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+        overflow: hidden;
+    }
+    .chevron-rotated {
+        transform: rotate(-90deg);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
     <div class="min-h-screen p-6">
         <div class="max-w-7xl mx-auto">
             <!-- Header -->
             <div class="bg-white rounded-lg shadow-xl p-6 mb-6">
                 <div class="flex justify-between items-center mb-4">
                     <div>
-                        
-                        <h1 class="text-3xl font-bold text-gray-800">LNG Planning & Simulation </h1>
+                        <h1 class="text-3xl font-bold text-gray-800">LNG Planning & Simulation</h1>
                         {% if active_simulation %}
                         <p class="text-sm text-gray-600 mt-1">
                             Active: {{ active_simulation.name }} | {{ active_simulation.start_date }} to {{ active_simulation.end_date }}
@@ -59,12 +56,6 @@
                         <a href="{% url 'lng_planner:export_excel' active_simulation.id %}" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600">
                             📥 Export Excel
                         </a>
-                        <!-- <a href="{% url 'lng_planner:export_json' active_simulation.id %}" class="bg-indigo-500 text-white px-4 py-2 rounded hover:bg-indigo-600">
-                            📥 Export JSON
-                        </a>
-                        <a href="{% url 'lng_planner:import_json' active_simulation.id %}" class="bg-cyan-500 text-white px-4 py-2 rounded hover:bg-cyan-600">
-                            📤 Import JSON
-                        </a> -->
                         {% endif %}
                     </div>
                 </div>
@@ -770,7 +761,9 @@
             {% endif %}
         </div>
     </div>
+{% endblock %}
 
+{% block extra_scripts %}
 <script>
 function toggleSection(bodyId, chevronId) {
     const body = document.getElementById(bodyId);
@@ -812,11 +805,8 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
-
 <style>
 .plant-tab { transition: all 0.2s ease; }
 .plant-tab.active { background-color: #EFF6FF; }
 </style>
-
-</body>
-</html>
+{% endblock %}

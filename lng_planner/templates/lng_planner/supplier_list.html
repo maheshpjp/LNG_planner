@@ -1,0 +1,62 @@
+{% extends 'lng_planner/base.html' %}
+{% block title %}Suppliers | LNG Planning{% endblock %}
+{% block content %}
+<div class="space-y-6">
+    <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+            <h2 class="text-3xl font-bold text-slate-900">Suppliers</h2>
+            <p class="text-sm text-slate-600 mt-1">Search and manage supplier records for the active simulation.</p>
+        </div>
+        <a href="{% url 'lng_planner:add_supplier' active_simulation.id %}" class="inline-flex items-center rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
+            ➕ Add Supplier
+        </a>
+    </div>
+
+    <form method="get" class="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <label class="sr-only" for="supplier-search">Search suppliers</label>
+        <input id="supplier-search" name="q" type="search" value="{{ search_query }}" placeholder="Search supplier name or plant..." class="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-4 py-3 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200" />
+        <div class="flex gap-2">
+            <button type="submit" class="inline-flex items-center justify-center rounded-lg bg-slate-800 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-900">Search</button>
+            {% if search_query %}
+                <a href="{% url 'lng_planner:supplier_list' %}" class="inline-flex items-center justify-center rounded-lg bg-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-300">Clear</a>
+            {% endif %}
+        </div>
+    </form>
+
+    <div class="grid gap-4">
+        {% for supplier in suppliers %}
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                <div>
+                    <h3 class="text-xl font-semibold text-slate-900">{{ supplier.name }}</h3>
+                    <p class="mt-2 text-sm text-slate-600">Plant: <strong>{{ supplier.plant.name }}</strong></p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-700">Supplier</span>
+                    {% if not is_viewing_master %}
+                    <a href="{% url 'lng_planner:edit_supplier' supplier.id %}" class="rounded-lg bg-blue-100 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-200">Edit</a>
+                    <a href="{% url 'lng_planner:delete_supplier' supplier.id %}" onclick="return confirm('Delete this supplier?')" class="rounded-lg bg-rose-100 px-3 py-2 text-sm font-medium text-rose-700 hover:bg-rose-200">Delete</a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {% for date_range in supplier.date_ranges.all %}
+                <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div class="text-sm font-semibold text-slate-800">{{ date_range.from_date|date:'M d, Y' }} – {{ date_range.to_date|date:'M d, Y' }}</div>
+                    <div class="mt-2 text-sm text-slate-600">Daily supply: <strong>{{ date_range.daily_supply|floatformat:0 }} MT</strong></div>
+                </div>
+                {% empty %}
+                <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-slate-600">No supply ranges configured yet.</div>
+                {% endfor %}
+            </div>
+        </div>
+        {% empty %}
+        <div class="rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-600 shadow-sm">
+            <p class="text-lg font-medium">No suppliers found.</p>
+            <p class="mt-2">Add a supplier or update the search query to see results.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

@@ -19,23 +19,28 @@ urlpatterns = [
     path('simulation/master/manage/', views.manage_master_simulation, name='manage_master'),
     path('simulation/copy-from-master/', views.copy_from_master, name='copy_from_master'),
     path('simulation/refresh-master-sap/', views.refresh_master_from_sap, name='refresh_master_sap'),
+    path('simulation/<int:simulation_id>/summarize-llm/', views.summarize_simulation_with_llm, name='summarize_simulation_llm'),
     
     # Supplier management
+    path('suppliers/', views.supplier_list, name='supplier_list'),
     path('simulation/<int:simulation_id>/supplier/add/', views.add_supplier, name='add_supplier'),
     path('supplier/<int:supplier_id>/edit/', views.edit_supplier, name='edit_supplier'),
     path('supplier/<int:supplier_id>/delete/', views.delete_supplier, name='delete_supplier'),
     
     # Cargo management
+    path('cargos/', views.cargo_list, name='cargo_list'),
     path('simulation/<int:simulation_id>/cargo/add/', views.add_cargo, name='add_cargo'),
     path('cargo/<int:cargo_id>/edit/', views.edit_cargo, name='edit_cargo'),
     path('cargo/<int:cargo_id>/delete/', views.delete_cargo, name='delete_cargo'),
     
     # Customer management
+    path('customers/', views.customer_list, name='customer_list'),
     path('simulation/<int:simulation_id>/customer/add/', views.add_customer, name='add_customer'),
     path('customer/<int:customer_id>/edit/', views.edit_customer, name='edit_customer'),
     path('customer/<int:customer_id>/delete/', views.delete_customer, name='delete_customer'),
     
     # Refinery management
+    path('refineries/', views.refinery_list, name='refinery_list'),
     path('simulation/<int:simulation_id>/refinery/add/', views.add_refinery, name='add_refinery'),
     path('refinery/<int:refinery_id>/edit/', views.edit_refinery, name='edit_refinery'),
     path('refinery/<int:refinery_id>/delete/', views.delete_refinery, name='delete_refinery'),
